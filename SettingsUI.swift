@@ -1,4 +1,4 @@
-// Окно настроек LayoutFixer (разделы как в Punto Switcher, но без «Дневника» — набранный текст не хранится).
+// Окно настроек LayoutFixer. Журнала набранного текста здесь нет намеренно.
 
 import SwiftUI
 import ServiceManagement
@@ -462,7 +462,7 @@ struct PrivacyTab: View {
     var body: some View {
         Form {
             Section("Что программа НЕ делает") {
-                Label("Не записывает набранный текст — «Дневника», как в Punto, здесь нет специально", systemImage: "xmark.circle")
+                Label("Не записывает набранный текст — журнала набора здесь нет намеренно", systemImage: "xmark.circle")
                 Label("Не видит пароли: в полях паролей macOS скрывает нажатия, а программа их пропускает", systemImage: "xmark.circle")
                 Label("Не выходит в интернет — в коде нет ни одного сетевого запроса", systemImage: "xmark.circle")
                 Label("Не трогает логины: слова с цифрами, @, точками не исправляются", systemImage: "xmark.circle")

@@ -1,4 +1,4 @@
-// LayoutFixer — личный аналог Punto Switcher для macOS (EN <-> RU).
+// LayoutFixer — переключатель раскладки для macOS (латиница <-> кириллица).
 //
 // Принципы приватности:
 //  * Нажатия клавиш НИКОГДА не пишутся на диск и не уходят в сеть (в коде нет ни одного сетевого вызова).
@@ -519,7 +519,7 @@ enum Poster {
     }
 }
 
-// MARK: - Выделенный текст (как «Shift+Break» в Punto)
+// MARK: - Выделенный текст
 
 enum TextTools {
     enum Kind { case layout, invertCase, translit }

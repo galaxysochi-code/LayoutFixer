@@ -148,7 +148,7 @@ final class Settings {
         set { d.set(newValue, forKey: "autoText") }
     }
 
-    /// Выбранные словари (коды macOS: ru, en, en_GB, es, uk …).
+    /// Выбранные словари (коды macOS: ru, en, en_GB, es …).
     var spellLanguages: [String] {
         get { d.stringArray(forKey: "spellLanguages") ?? ["ru", "en"] }
         set { d.set(newValue, forKey: "spellLanguages") }
@@ -181,16 +181,15 @@ enum Script: String {
 
     var other: Script { self == .latin ? .cyrillic : .latin }
 
-    /// Словари macOS, относящиеся к этому алфавиту.
+    /// Алфавит словаря macOS по его коду.
     static func of(_ code: String) -> Script? {
-        let cyr = ["ru", "uk", "bg", "sr", "mk", "be"]
-        if cyr.contains(where: { code == $0 || code.hasPrefix($0 + "_") }) { return .cyrillic }
-        return .latin
+        code == "ru" || code.hasPrefix("ru_") ? .cyrillic : .latin
     }
 
     static func of(character c: Character) -> Script? {
-        guard c.isLetter else { return nil }
-        return c.isASCII ? .latin : (("а"..."я").contains(Character(c.lowercased())) || c == "ё" || c == "і" || c == "ї" || c == "є" || c == "ґ" ? .cyrillic : nil)
+        guard c.isLetter, let u = c.unicodeScalars.first?.value else { return nil }
+        if c.isASCII { return .latin }
+        return (0x0400...0x04FF).contains(u) ? .cyrillic : nil // кириллический блок Unicode
     }
 
     static func of(word: String) -> Script? {
@@ -328,18 +327,17 @@ final class Layouts {
 final class Speller {
     private let checker = NSSpellChecker.shared
 
-    /// Словари, которые не предлагаем и не используем.
-    static let hidden: Set<String> = ["uk"]
+    /// Предлагаем все латинские словари и русский для кириллицы.
+    let available: [String] = NSSpellChecker.shared.availableLanguages
+        .filter { Script.of($0) == .latin || $0 == "ru" }
 
-    let available: [String] = NSSpellChecker.shared.availableLanguages.filter { !Speller.hidden.contains($0) }
-
-    /// Выбранные словари (коды macOS: ru, en, en_GB, es, uk …). Читается из настроек.
+    /// Выбранные словари (коды macOS: ru, en, en_GB, es …). Читается из настроек.
     private(set) var languages: [String] = []
 
     init() { reload() }
 
     func reload() {
-        languages = Settings.shared.spellLanguages.filter { available.contains($0) } // скрытые словари сюда не попадут
+        languages = Settings.shared.spellLanguages.filter { available.contains($0) }
         if languages.isEmpty { languages = available.filter { $0 == "ru" || $0 == "en" } }
     }
 

@@ -75,7 +75,9 @@ can use any dictionary installed in macOS — about forty of them, from British 
    permission is missing.
 
 The app is signed with an ad-hoc signature that changes on every build, so macOS asks for the
-permission again after each update. Remove the old entry with **−** and add the app again.
+permission again after each update. Remove the old entry with **−** and add the app again. If you
+build it yourself, `./scripts/make-signing-cert.sh` creates a permanent local certificate and the
+permission stops resetting.
 
 ## Privacy
 

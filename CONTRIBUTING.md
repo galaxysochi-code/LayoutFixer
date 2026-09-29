@@ -26,6 +26,12 @@ Open an [issue](https://github.com/galaxysochi-code/LayoutFixer/issues) and incl
   no spell checking, no input-source switching, no disk access). A wait there freezes input for the
   whole machine.
 
+## Signing
+
+By default the app gets an ad-hoc signature that changes on every build, so macOS revokes the
+Accessibility permission after each rebuild. Run `./scripts/make-signing-cert.sh` once to create a
+permanent local certificate, then build with `SIGN_IDENTITY="LayoutFixer Local" ./build.sh`.
+
 ## Releasing
 
 ```bash

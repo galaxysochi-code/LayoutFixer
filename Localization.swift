@@ -150,4 +150,8 @@ let translations: [String: [String: String]] = [
     " В нём есть цифры или знаки, а такие слова программа не трогает.": ["en": " It contains digits or symbols, and the app leaves such words alone.", "zh": " 其中含有数字或符号，这类词应用不会修改。", "es": " Contiene cifras o símbolos, y la app no toca esas palabras."],
     "Язык интерфейса": ["en": "Interface language", "zh": "界面语言", "es": "Idioma de la interfaz"],
     "Как в системе": ["en": "Same as the system", "zh": "跟随系统", "es": "Igual que el sistema"],
+    "Выбранные": ["en": "Enabled", "zh": "已启用", "es": "Activados"],
+    "Все словари": ["en": "All dictionaries", "zh": "所有词典", "es": "Todos los diccionarios"],
+    "Поиск": ["en": "Search", "zh": "搜索", "es": "Buscar"],
+    "Ничего не найдено": ["en": "Nothing found", "zh": "未找到任何内容", "es": "No se ha encontrado nada"],
 ]

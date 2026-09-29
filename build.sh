@@ -25,5 +25,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key><string>© 2026 Vladislav Tolmachev</string>
 </dict></plist>
 PLIST
-codesign --force --sign - "$APP"
+# Постоянный сертификат, если он есть (см. scripts/make-signing-cert.sh), иначе временная подпись.
+IDENTITY="${SIGN_IDENTITY:--}"
+codesign --force --sign "$IDENTITY" "$APP"
+[ "$IDENTITY" = "-" ] && echo "Подпись временная: после установки доступ к клавиатуре придётся выдать заново."
 echo "Готово: $PWD/$APP"

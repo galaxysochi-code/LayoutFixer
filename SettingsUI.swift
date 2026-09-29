@@ -407,26 +407,51 @@ struct AppsTab: View {
 
 struct LanguagesTab: View {
     @ObservedObject var m: SettingsModel
+    @State private var query = ""
+
+    /// Выбранные словари — наверху, остальные ниже и с поиском.
+    private var enabled: [String] { m.availableLanguages.filter { m.isLanguageOn($0) } }
+    private var rest: [String] {
+        m.availableLanguages.filter { code in
+            guard !m.isLanguageOn(code) else { return false }
+            guard !query.isEmpty else { return true }
+            return m.languageName(code).localizedCaseInsensitiveContains(query)
+                || code.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         Form {
+            Section(tr("Выбранные") + " (\(enabled.count))") {
+                ForEach(enabled, id: \.self) { row($0) }
+            }
             Section {
-                ForEach(m.availableLanguages, id: \.self) { code in
-                    Toggle(isOn: Binding(get: { m.isLanguageOn(code) }, set: { m.setLanguage(code, $0) })) {
-                        HStack {
-                            Text(m.languageName(code))
-                            Text(code).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
+                if rest.isEmpty {
+                    Text(tr("Ничего не найдено")).foregroundStyle(.secondary)
                 }
+                ForEach(rest, id: \.self) { row($0) }
             } header: {
-                Text(tr("Словари для проверки слов"))
+                HStack {
+                    Text(tr("Все словари"))
+                    Spacer()
+                    TextField(tr("Поиск"), text: $query)
+                        .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 200)
+                }
             } footer: {
                 Text(tr("Нужен хотя бы один словарь с латиницей (английский, испанский…) и русский для кириллицы. Слово считается правильным, если оно есть хотя бы в одном выбранном словаре своего алфавита. Чем больше словарей, тем реже срабатывает замена: слова из разных языков начинают считаться правильными.\n\nКитайского здесь нет: в macOS нет такого словаря, и китайский набирается методом ввода, а не раскладкой — подменять буквы там нечего."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func row(_ code: String) -> some View {
+        Toggle(isOn: Binding(get: { m.isLanguageOn(code) }, set: { m.setLanguage(code, $0) })) {
+            HStack {
+                Text(m.languageName(code))
+                Text(code).font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

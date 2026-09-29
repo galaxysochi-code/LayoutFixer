@@ -25,12 +25,15 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/main.png" width="720" alt="LayoutFixer settings window">
+  <img src="docs/images/main-en.png" width="720" alt="LayoutFixer settings window">
 </p>
 
 LayoutFixer watches for words typed in the wrong keyboard layout and fixes them as you go,
 using the spelling dictionaries already built into macOS. Everything happens locally: no
 account, no analytics, no network requests — and, unlike similar tools, no log of what you type.
+
+The interface speaks **English, Simplified Chinese, Spanish and Russian**, and the spell checking
+can use any dictionary installed in macOS — about forty of them, from British English to German.
 
 <p align="center">
   <b>English</b> · <a href="#简体中文">简体中文</a> · <a href="#español">Español</a> · <a href="#русский">Русский</a>
@@ -47,8 +50,11 @@ account, no analytics, no network requests — and, unlike similar tools, no log
 - **One-key undo.** The reverted word is remembered and left alone from then on.
 - **Snippets:** type `спс` and get `Спасибо!`. Works in either layout.
 - **Exceptions** by word and by app.
-- **Your choice of dictionaries.** Russian and English by default; any Latin dictionary installed in
-  macOS can be added — British English, Spanish, German and the rest.
+- **Your choice of dictionaries.** Russian and English (US) by default; any Latin dictionary
+  installed in macOS can be added — British English, Spanish, German, French and the rest. Words
+  count as correct if any enabled dictionary of their alphabet knows them.
+- **Four interface languages:** English, Simplified Chinese, Spanish and Russian, picked
+  automatically from the system language or chosen by hand.
 
 ## Requirements
 
@@ -153,6 +159,10 @@ LayoutFixer 是一款免费开源的 macOS 菜单栏应用：它把用错键盘�
 
 [免费下载](https://github.com/galaxysochi-code/LayoutFixer/releases/latest)
 
+<p align="center">
+  <img src="docs/images/main-zh.png" width="720" alt="LayoutFixer 设置窗口">
+</p>
+
 ### 功能
 
 - **自动修正布局：** 空格或标点之后，如果当前布局下的词毫无意义，而在另一种布局下是真实单词，就会被替换。
@@ -162,7 +172,8 @@ LayoutFixer 是一款免费开源的 macOS 菜单栏应用：它把用错键盘�
 - **一键撤销**，被撤销的词会被记住，之后不再修改。
 - **缩写替换：** 输入 `спс` 得到 `Спасибо!`。
 - 按词和按应用设置例外。
-- **自选词典：** 默认俄语和英语，可添加 macOS 中已安装的任意拉丁语词典。
+- **自选词典：** 默认俄语和英语（美国），可添加 macOS 中已安装的任意拉丁语词典（英式英语、西班牙语、德语等）。
+- **四种界面语言：** 英语、简体中文、西班牙语和俄语，默认跟随系统。
 
 ### 系统要求
 
@@ -205,6 +216,10 @@ Todo ocurre en tu Mac: sin cuenta, sin analíticas, sin conexiones de red y sin 
 
 [Descargar gratis](https://github.com/galaxysochi-code/LayoutFixer/releases/latest)
 
+<p align="center">
+  <img src="docs/images/main-es.png" width="720" alt="Ventana de ajustes de LayoutFixer">
+</p>
+
 ### Funciones
 
 - **Corrige la distribución automáticamente:** tras un espacio o un signo de puntuación, la palabra
@@ -216,8 +231,9 @@ Todo ocurre en tu Mac: sin cuenta, sin analíticas, sin conexiones de red y sin 
 - **Deshacer con una tecla.** La palabra revertida queda en la lista de excepciones.
 - **Abreviaturas:** escribe `spc` y obtén el texto completo. Funciona en cualquier distribución.
 - Excepciones por palabra y por aplicación.
-- **Diccionarios a tu elección:** ruso e inglés por omisión; puedes añadir español, inglés británico,
-  alemán y cualquier otro instalado en macOS.
+- **Diccionarios a tu elección:** ruso e inglés (EE. UU.) por omisión; puedes añadir español,
+  inglés británico, alemán y cualquier otro instalado en macOS.
+- **Cuatro idiomas de interfaz:** inglés, chino simplificado, español y ruso, según el idioma del sistema.
 
 ### Requisitos
 
@@ -261,6 +277,10 @@ LayoutFixer — бесплатное приложение для строки м
 
 [Скачать бесплатно](https://github.com/galaxysochi-code/LayoutFixer/releases/latest)
 
+<p align="center">
+  <img src="docs/images/main-ru.png" width="720" alt="Окно настроек LayoutFixer">
+</p>
+
 ### Возможности
 
 - **Автопереключение раскладки.** После пробела или знака препинания слово, которое ничего не значит
@@ -273,8 +293,10 @@ LayoutFixer — бесплатное приложение для строки м
 - **Отмена замены** одной клавишей: отменённое слово попадает в исключения.
 - **Автозамена сокращений:** `спс` → `Спасибо!`. Работает в любой раскладке.
 - **Исключения** по словам и по программам.
-- **Выбор словарей:** по умолчанию русский и английский, можно добавить любой латинский словарь,
-  установленный в macOS.
+- **Выбор словарей:** по умолчанию русский и английский (США), можно добавить любой латинский
+  словарь, установленный в macOS: британский английский, испанский, немецкий и другие.
+- **Четыре языка интерфейса:** английский, китайский, испанский и русский — берётся из языка системы
+  или выбирается вручную.
 
 ### Требования
 

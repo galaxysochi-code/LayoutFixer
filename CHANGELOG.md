@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Interface in four languages: English, Simplified Chinese, Spanish and Russian. The language
+  follows the system by default and can be chosen in General.
+- Repository documentation: multilingual README, PRIVACY, SECURITY, CONTRIBUTING.
+
 ## v1.0.1
 
 - Dictionary list: all Latin dictionaries installed in macOS plus Russian, chosen in the new

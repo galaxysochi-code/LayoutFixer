@@ -20,10 +20,10 @@ let kBackspace: UInt16 = 51, kSpace: UInt16 = 49, kReturn: UInt16 = 36, kTab: UI
 let kEnter: UInt16 = 76, kEscape: UInt16 = 53
 let resetKeys: Set<UInt16> = [123, 124, 125, 126, 115, 119, 116, 121, 117, 53] // стрелки, Home/End, PgUp/PgDn, Del, Esc
 
-let modifierKeyNames: [UInt16: String] = [
-    54: "Правый ⌘", 55: "Левый ⌘", 58: "Левый ⌥", 61: "Правый ⌥",
-    59: "Левый ⌃", 62: "Правый ⌃", 56: "Левый ⇧", 60: "Правый ⇧", 63: "fn",
-]
+var modifierKeyNames: [UInt16: String] { [
+    54: tr("Правый ⌘"), 55: tr("Левый ⌘"), 58: tr("Левый ⌥"), 61: tr("Правый ⌥"),
+    59: tr("Левый ⌃"), 62: tr("Правый ⌃"), 56: tr("Левый ⇧"), 60: tr("Правый ⇧"), 63: "fn",
+] }
 
 let excludedApps: Set<String> = [
     "com.apple.keychainaccess", "com.apple.Passwords",
@@ -45,7 +45,7 @@ struct Hotkey: Codable, Hashable {
     }
 
     var title: String {
-        if modifierOnly { return (modifierKeyNames[keyCode] ?? "Модификатор \(keyCode)") + " (нажать и отпустить)" }
+        if modifierOnly { return (modifierKeyNames[keyCode] ?? tr(tr("Модификатор %@"), String(keyCode))) + tr(" (нажать и отпустить)") }
         let f = CGEventFlags(rawValue: mods)
         var s = ""
         if f.contains(.maskControl) { s += "⌃" }
@@ -58,7 +58,7 @@ struct Hotkey: Codable, Hashable {
 
 func keyName(_ code: UInt16) -> String {
     let special: [UInt16: String] = [
-        49: "Пробел", 36: "Return", 48: "Tab", 51: "⌫", 53: "Esc", 117: "⌦",
+        49: tr("Пробел"), 36: "Return", 48: "Tab", 51: "⌫", 53: "Esc", 117: "⌦",
         123: "←", 124: "→", 125: "↓", 126: "↑", 115: "Home", 119: "End", 116: "PgUp", 121: "PgDn",
         122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7", 100: "F8",
         101: "F9", 109: "F10", 103: "F11", 111: "F12", 105: "F13", 107: "F14", 113: "F15",
@@ -79,20 +79,20 @@ enum HotkeyAction: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .undo: return "Отменить замену"
-        case .convert: return "Сменить раскладку слова"
-        case .convertSelection: return "Сменить раскладку выделенного"
-        case .caseSelection: return "Сменить регистр выделенного"
-        case .translitSelection: return "Транслитерация выделенного"
+        case .undo: return tr("Отменить замену")
+        case .convert: return tr("Сменить раскладку слова")
+        case .convertSelection: return tr("Сменить раскладку выделенного")
+        case .caseSelection: return tr("Сменить регистр выделенного")
+        case .translitSelection: return tr("Транслитерация выделенного")
         }
     }
 
     var hint: String {
         switch self {
-        case .undo: return "Сразу после замены: вернуть как было и запомнить слово"
-        case .convert: return "Принудительно: слово, которое набираете, или последнее слово"
+        case .undo: return tr("Сразу после замены: вернуть как было и запомнить слово")
+        case .convert: return tr("Принудительно: слово, которое набираете, или последнее слово")
         case .convertSelection: return "ghbdtn vbh → привет мир"
-        case .caseSelection: return "пРИВЕТ → Привет"
+        case .caseSelection: return tr("пРИВЕТ → Привет")
         case .translitSelection: return "привет ↔ privet"
         }
     }
@@ -146,6 +146,12 @@ final class Settings {
     var autoText: [String: String] {
         get { d.dictionary(forKey: "autoText") as? [String: String] ?? [:] }
         set { d.set(newValue, forKey: "autoText") }
+    }
+
+    /// Язык интерфейса: auto, ru, en, zh, es.
+    var uiLanguage: String {
+        get { d.string(forKey: "uiLanguage") ?? "auto" }
+        set { d.set(newValue, forKey: "uiLanguage") }
     }
 
     /// Выбранные словари (коды macOS: ru, en, en_GB, es …).
@@ -1028,18 +1034,18 @@ final class Switcher {
         let word = typed.trimmingCharacters(in: .whitespaces)
         guard !word.isEmpty else { return "" }
         guard let cur = layouts.current(), let alt = layouts.other(cur) else {
-            return "Сейчас активна раскладка, которую программа не знает (нужны английская и русская)."
+            return tr("Сейчас активна раскладка, которую программа не знает (нужны английская и русская).")
         }
-        if word.count < 2 { return "Слишком короткое слово — такие не заменяются." }
-        if exceptions.contains(word) { return "«\(word)» в списке исключений (раздел «Правила») — не заменяется." }
+        if word.count < 2 { return tr("Слишком короткое слово — такие не заменяются.") }
+        if exceptions.contains(word) { return tr(tr("«%@» в списке исключений (раздел «Правила») — не заменяется."), word) }
         if let form = speller.knownForm(word) {
-            return "«\(form)» — обычное слово в текущей раскладке, заменять нечего."
+            return tr(tr("«%@» — обычное слово в текущей раскладке, заменять нечего."), form)
         }
         let (other, _) = TextTools.convertLayout(word)
-        if let form = speller.knownForm(other) { return "Заменит на «\(form)» и переключит раскладку." }
-        if let fixed = speller.correction(word, cur) { return "Опечатка: исправит на «\(fixed)»." }
-        var why = "Не заменит: «\(other)» в другой раскладке — не слово из словаря."
-        if !isWordish(other) { why += " В нём есть цифры или знаки, а такие слова программа не трогает." }
+        if let form = speller.knownForm(other) { return tr(tr("Заменит на «%@» и переключит раскладку."), form) }
+        if let fixed = speller.correction(word, cur) { return tr(tr("Опечатка: исправит на «%@»."), fixed) }
+        var why = tr(tr("Не заменит: «%@» в другой раскладке — не слово из словаря."), other)
+        if !isWordish(other) { why += tr(" В нём есть цифры или знаки, а такие слова программа не трогает.") }
         return why
     }
 
@@ -1206,8 +1212,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let working = switcher.tap != nil
         button.image = keycapImage(warning: !working)
         button.appearsDisabled = working && !Settings.shared.autoFix
-        button.toolTip = !working ? "LayoutFixer: нет доступа"
-            : (Settings.shared.autoFix ? "LayoutFixer" : "LayoutFixer: автопереключение выключено")
+        button.toolTip = !working ? tr("LayoutFixer: нет доступа")
+            : (Settings.shared.autoFix ? "LayoutFixer" : tr("LayoutFixer: автопереключение выключено"))
     }
 
     @objc func showSettings(_ sender: Any?) {
@@ -1227,19 +1233,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if switcher.tap == nil {
-            menu.addItem(disabled("⚠︎ Нет доступа — откройте настройки"))
+            menu.addItem(disabled(tr("⚠︎ Нет доступа — откройте настройки")))
             menu.addItem(.separator())
         }
-        let auto = item("Автопереключение раскладки", #selector(toggleAuto))
+        let auto = item(tr("Автопереключение раскладки"), #selector(toggleAuto))
         auto.state = Settings.shared.autoFix ? .on : .off
         menu.addItem(auto)
-        let typo = item("Исправлять опечатки", #selector(toggleTypo))
+        let typo = item(tr("Исправлять опечатки"), #selector(toggleTypo))
         typo.state = Settings.shared.typoFix ? .on : .off
         menu.addItem(typo)
         menu.addItem(.separator())
-        menu.addItem(item("Настройки…", #selector(showSettings(_:)), key: ","))
+        menu.addItem(item(tr("Настройки…"), #selector(showSettings(_:)), key: ","))
         menu.addItem(.separator())
-        menu.addItem(item("Выйти", #selector(quit), key: "q"))
+        menu.addItem(item(tr("Выйти"), #selector(quit), key: "q"))
     }
 
     private func item(_ t: String, _ s: Selector, key: String = "") -> NSMenuItem {

@@ -43,6 +43,11 @@ final class SettingsModel: ObservableObject {
     var sound: Binding<Bool> { toggle({ self.s.sound }, { self.s.sound = $0 }) }
     var autoTextOn: Binding<Bool> { toggle({ self.s.autoTextOn }, { self.s.autoTextOn = $0 }) }
 
+    var uiLanguage: Binding<UILanguage> {
+        Binding(get: { UILanguage(rawValue: self.s.uiLanguage) ?? .auto },
+                set: { self.s.uiLanguage = $0.rawValue; self.refresh(); self.onChange?() })
+    }
+
     var launchAtLogin: Binding<Bool> {
         toggle({ SMAppService.mainApp.status == .enabled }, { on in
             do {
@@ -89,7 +94,8 @@ final class SettingsModel: ObservableObject {
 
     // словари
     func languageName(_ code: String) -> String {
-        let name = Locale.current.localizedString(forIdentifier: code) ?? code
+        let locale = Locale(identifier: currentUILanguage())
+        let name = locale.localizedString(forIdentifier: code) ?? Locale.current.localizedString(forIdentifier: code) ?? code
         return name.prefix(1).uppercased() + name.dropFirst()
     }
 
@@ -138,17 +144,17 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            GeneralTab(m: m).tabItem { Label("Общие", systemImage: "gearshape") }
-            HotkeysTab(m: m).tabItem { Label("Горячие клавиши", systemImage: "keyboard") }
-            RulesTab(m: m).tabItem { Label("Правила", systemImage: "character.book.closed") }
-            AutoTextTab(m: m).tabItem { Label("Автозамена", systemImage: "text.insert") }
-            AppsTab(m: m).tabItem { Label("Программы", systemImage: "square.grid.2x2") }
-            LanguagesTab(m: m).tabItem { Label("Языки", systemImage: "character.book.closed.fill") }
-            CheckTab().tabItem { Label("Проверка", systemImage: "stethoscope") }
-            PrivacyTab().tabItem { Label("Приватность", systemImage: "lock.shield") }
+            GeneralTab(m: m).tabItem { Label(tr("Общие"), systemImage: "gearshape") }
+            HotkeysTab(m: m).tabItem { Label(tr("Горячие клавиши"), systemImage: "keyboard") }
+            RulesTab(m: m).tabItem { Label(tr("Правила"), systemImage: "character.book.closed") }
+            AutoTextTab(m: m).tabItem { Label(tr("Автозамена"), systemImage: "text.insert") }
+            AppsTab(m: m).tabItem { Label(tr("Программы"), systemImage: "square.grid.2x2") }
+            LanguagesTab(m: m).tabItem { Label(tr("Языки"), systemImage: "character.book.closed.fill") }
+            CheckTab().tabItem { Label(tr("Проверка"), systemImage: "stethoscope") }
+            PrivacyTab().tabItem { Label(tr("Приватность"), systemImage: "lock.shield") }
         }
         .padding()
-        .frame(width: 660, height: 500)
+        .frame(width: 720, height: 520)
     }
 }
 
@@ -159,40 +165,48 @@ struct GeneralTab: View {
 
     var body: some View {
         Form {
-            Section("Состояние") {
+            Section(tr("Состояние")) {
                 HStack {
                     Image(systemName: m.accessOK ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .foregroundStyle(m.accessOK ? .green : .orange)
-                    Text(m.accessOK ? "Работает" : "Нет доступа к клавиатуре")
+                    Text(m.accessOK ? tr("Работает") : tr("Нет доступа к клавиатуре"))
                     Spacer()
                     if !m.accessOK {
-                        Button("Открыть «Универсальный доступ»") {
+                        Button(tr("Открыть «Универсальный доступ»")) {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
                         }
                     }
                 }
                 if !m.accessOK {
-                    Text("Нажмите «+», выберите Программы → LayoutFixer и включите переключатель. Если программа уже в списке — удалите её «−» и добавьте заново.")
+                    Text(tr("Нажмите «+», выберите Программы → LayoutFixer и включите переключатель. Если программа уже в списке — удалите её «−» и добавьте заново."))
                         .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                statusRow("Раскладки", ok: Layouts.shared.latinMain != nil && Layouts.shared.cyrillicMain != nil,
+                statusRow(tr("Раскладки"), ok: Layouts.shared.latinMain != nil && Layouts.shared.cyrillicMain != nil,
                           good: Layouts.shared.all.compactMap { $0.localizedName }.joined(separator: ", "),
-                          bad: "Нужны две раскладки: латинская и кириллическая")
-                statusRow("Словари", ok: switcher.speller.missingScripts.isEmpty,
+                          bad: tr("Нужны две раскладки: латинская и кириллическая"))
+                statusRow(tr("Словари"), ok: switcher.speller.missingScripts.isEmpty,
                           good: switcher.speller.languages.map { m.languageName($0) }.joined(separator: ", "),
-                          bad: "Выберите словари обоих алфавитов в разделе «Языки»")
+                          bad: tr("Выберите словари обоих алфавитов в разделе «Языки»"))
             }
-            Section("Исправление") {
-                Toggle("Автоматически переключать раскладку (ghbdtn → привет)", isOn: m.autoFix)
-                Toggle("Исправлять опечатки (менб → меню)", isOn: m.typoFix)
-                Toggle("Автозамена сокращений (см. раздел «Автозамена»)", isOn: m.autoTextOn)
+            Section(tr("Исправление")) {
+                Toggle(tr("Автоматически переключать раскладку (ghbdtn → привет)"), isOn: m.autoFix)
+                Toggle(tr("Исправлять опечатки (менб → меню)"), isOn: m.typoFix)
+                Toggle(tr("Автозамена сокращений (см. раздел «Автозамена»)"), isOn: m.autoTextOn)
             }
-            Section("Прочее") {
-                Toggle("Звук при переключении раскладки", isOn: m.sound)
-                Toggle("Запускать при входе в систему", isOn: m.launchAtLogin)
+            Section(tr("Прочее")) {
+                Toggle(tr("Звук при переключении раскладки"), isOn: m.sound)
+                Toggle(tr("Запускать при входе в систему"), isOn: m.launchAtLogin)
                 if let e = m.loginError { Text(e).font(.callout).foregroundStyle(.red) }
             }
-            Section("О программе") {
+            Section(tr("Язык интерфейса")) {
+                Picker(tr("Язык интерфейса"), selection: m.uiLanguage) {
+                    ForEach(UILanguage.allCases) { l in Text(l.title).tag(l) }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+            }
+            Section(tr("О программе")) {
                 HStack {
                     Text("LayoutFixer")
                     Spacer()
@@ -200,7 +214,7 @@ struct GeneralTab: View {
                         .foregroundStyle(.secondary)
                 }
                 HStack {
-                    Text("Разработчик")
+                    Text(tr("Разработчик"))
                     Spacer()
                     Text("Vladislav Tolmachev").foregroundStyle(.secondary).textSelection(.enabled)
                 }
@@ -215,7 +229,7 @@ struct GeneralTab: View {
                 .foregroundStyle(ok ? .green : .orange)
             Text(title)
             Spacer()
-            Text(ok ? good : bad).foregroundStyle(.secondary)
+            Text(ok ? good : bad).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
         }
     }
 }
@@ -236,24 +250,24 @@ struct HotkeysTab: View {
                         }
                         Spacer()
                         if m.recording == a {
-                            Text("Нажмите сочетание…").foregroundStyle(Color.accentColor)
-                            Button("Отмена") { m.stopRecording() }
+                            Text(tr("Нажмите сочетание…")).foregroundStyle(Color.accentColor)
+                            Button(tr("Отмена")) { m.stopRecording() }
                         } else {
-                            Menu(m.hotkey(a)?.title ?? "Не задано") {
+                            Menu(m.hotkey(a)?.title ?? tr("Не задано")) {
                                 ForEach(HotkeyAction.presets, id: \.self) { hk in
                                     Button(hk.title) { m.setHotkey(hk, a) }
                                 }
                                 Divider()
-                                Button("Записать своё сочетание…") { m.startRecording(a) }
+                                Button(tr("Записать своё сочетание…")) { m.startRecording(a) }
                                     .disabled(!m.accessOK)
-                                Button("Выключить") { m.setHotkey(nil, a) }
+                                Button(tr("Выключить")) { m.setHotkey(nil, a) }
                             }
                             .frame(width: 260)
                         }
                     }
                 }
             } footer: {
-                Text("Своё сочетание: нажмите клавиши с ⌘, ⌃ или ⌥, F-клавишу, либо нажмите и отпустите один модификатор (например, правый ⌘). Esc — отмена.\n⌘Пробел и ⌃Пробел macOS по умолчанию забирает себе (Spotlight и смена раскладки). «Отменить замену» срабатывает только сразу после замены — в остальное время сочетание работает как обычно.")
+                Text(tr("Своё сочетание: нажмите клавиши с ⌘, ⌃ или ⌥, F-клавишу, либо нажмите и отпустите один модификатор (например, правый ⌘). Esc — отмена.\n⌘Пробел и ⌃Пробел macOS по умолчанию забирает себе (Spotlight и смена раскладки). «Отменить замену» срабатывает только сразу после замены — в остальное время сочетание работает как обычно."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -273,15 +287,15 @@ struct RulesTab: View {
         Form {
             Section {
                 HStack {
-                    TextField("Новое слово", text: $newWord)
+                    TextField(tr("Новое слово"), text: $newWord)
                         .textFieldStyle(.roundedBorder).labelsHidden().onSubmit(add)
                     Button("Добавить", action: add).disabled(newWord.isEmpty)
                 }
-                if bad { Text("Только буквы, от 2 до 40 символов").font(.caption).foregroundStyle(.red) }
+                if bad { Text(tr("Только буквы, от 2 до 40 символов")).font(.caption).foregroundStyle(.red) }
             } header: {
-                Text("Слова, которые не исправлять")
+                Text(tr("Слова, которые не исправлять"))
             } footer: {
-                Text("Слово попадает сюда само, когда вы отменяете замену. Хранится только список этих слов.")
+                Text(tr("Слово попадает сюда само, когда вы отменяете замену. Хранится только список этих слов."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Список (\(m.exceptions.count))") {
@@ -316,24 +330,24 @@ struct AutoTextTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Включить автозамену", isOn: m.autoTextOn)
+                Toggle(tr("Включить автозамену"), isOn: m.autoTextOn)
                 HStack {
-                    TextField("Сокращение", text: $key)
+                    TextField(tr("Сокращение"), text: $key)
                         .textFieldStyle(.roundedBorder).labelsHidden().frame(width: 140)
                     Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                    TextField("Текст", text: $value)
+                    TextField(tr("Текст"), text: $value)
                         .textFieldStyle(.roundedBorder).labelsHidden().onSubmit(add)
-                    Button("Добавить", action: add).disabled(key.isEmpty || value.isEmpty)
+                    Button(tr("Добавить"), action: add).disabled(key.isEmpty || value.isEmpty)
                 }
-                if bad { Text("Сокращение — только буквы, 2–20 символов").font(.caption).foregroundStyle(.red) }
+                if bad { Text(tr("Сокращение — только буквы, 2–20 символов")).font(.caption).foregroundStyle(.red) }
             } header: {
-                Text("Сокращения")
+                Text(tr("Сокращения"))
             } footer: {
-                Text("Наберите сокращение и пробел — оно заменится текстом. Работает в любой раскладке: «спс» и «cgc» — одно и то же. ⌥Пробел сразу после — отменить.")
+                Text(tr("Наберите сокращение и пробел — оно заменится текстом. Работает в любой раскладке: «спс» и «cgc» — одно и то же. ⌥Пробел сразу после — отменить."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Список (\(m.autoText.count))") {
-                if m.autoText.isEmpty { Text("Например: спс → Спасибо!").foregroundStyle(.secondary) }
+                if m.autoText.isEmpty { Text(tr("Например: спс → Спасибо!")).foregroundStyle(.secondary) }
                 ForEach(m.autoText, id: \.key) { item in
                     HStack {
                         Text(item.key).bold().frame(width: 120, alignment: .leading)
@@ -362,7 +376,7 @@ struct AppsTab: View {
     var body: some View {
         Form {
             Section {
-                if m.apps.isEmpty { Text("Пока пусто").foregroundStyle(.secondary) }
+                if m.apps.isEmpty { Text(tr("Пока пусто")).foregroundStyle(.secondary) }
                 ForEach(m.apps, id: \.self) { id in
                     let info = appInfo(id)
                     HStack {
@@ -373,15 +387,15 @@ struct AppsTab: View {
                             .buttonStyle(.borderless)
                     }
                 }
-                Button("Добавить программу…") { m.addApp() }
+                Button(tr("Добавить программу…")) { m.addApp() }
             } header: {
-                Text("В этих программах LayoutFixer ничего не делает")
+                Text(tr("В этих программах LayoutFixer ничего не делает"))
             } footer: {
-                Text("Удобно для игр, Терминала, удалённого рабочего стола.")
+                Text(tr("Удобно для игр, Терминала, удалённого рабочего стола."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Всегда исключены") {
-                Text("Поля паролей во всех программах, а также менеджеры паролей: Пароли, Связка ключей, 1Password, Bitwarden, LastPass, KeePassXC, Dashlane.")
+            Section(tr("Всегда исключены")) {
+                Text(tr("Поля паролей во всех программах, а также менеджеры паролей: Пароли, Связка ключей, 1Password, Bitwarden, LastPass, KeePassXC, Dashlane."))
                     .foregroundStyle(.secondary)
             }
         }
@@ -406,9 +420,9 @@ struct LanguagesTab: View {
                     }
                 }
             } header: {
-                Text("Словари для проверки слов")
+                Text(tr("Словари для проверки слов"))
             } footer: {
-                Text("Нужен хотя бы один словарь с латиницей (английский, испанский…) и русский для кириллицы. Слово считается правильным, если оно есть хотя бы в одном выбранном словаре своего алфавита. Чем больше словарей, тем реже срабатывает замена: слова из разных языков начинают считаться правильными.\n\nКитайского здесь нет: в macOS нет такого словаря, и китайский набирается методом ввода, а не раскладкой — подменять буквы там нечего.")
+                Text(tr("Нужен хотя бы один словарь с латиницей (английский, испанский…) и русский для кириллицы. Слово считается правильным, если оно есть хотя бы в одном выбранном словаре своего алфавита. Чем больше словарей, тем реже срабатывает замена: слова из разных языков начинают считаться правильными.\n\nКитайского здесь нет: в macOS нет такого словаря, и китайский набирается методом ввода, а не раскладкой — подменять буквы там нечего."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -425,9 +439,9 @@ struct CheckTab: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Наберите слово так, как набрали его в программе:")
+                    Text(tr("Наберите слово так, как набрали его в программе:"))
                         .font(.callout).foregroundStyle(.secondary)
-                    TextField("например, ghbdtn", text: $text)
+                    TextField(tr("например, ghbdtn"), text: $text)
                         .textFieldStyle(.roundedBorder)
                         .labelsHidden()
                         .font(.title3)
@@ -440,16 +454,16 @@ struct CheckTab: View {
                 }
                 .padding(.vertical, 4)
             } header: {
-                Text("Что программа сделает со словом")
+                Text(tr("Что программа сделает со словом"))
             } footer: {
-                Text("Набирайте в той же раскладке, в которой печатали. Слово нигде не сохраняется.")
+                Text(tr("Набирайте в той же раскладке, в которой печатали. Слово нигде не сохраняется."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Если замена не срабатывает при обычном наборе") {
-                Text("1. Проверьте слово здесь. Если тут написано «заменит», а в программе не заменяет — дело в той программе, где вы печатаете. Попробуйте «Заметки» или TextEdit.")
-                Text("2. Замена происходит после пробела, Enter или знака препинания, а не во время набора слова.")
-                Text("3. Заменяются только слова из словаря macOS. Сленг, имена и сокращения остаются как есть — для них правый ⌥.")
-                Text("4. Программы из раздела «Программы» пропускаются целиком.")
+            Section(tr("Если замена не срабатывает при обычном наборе")) {
+                Text(tr("1. Проверьте слово здесь. Если тут написано «заменит», а в программе не заменяет — дело в той программе, где вы печатаете. Попробуйте «Заметки» или TextEdit."))
+                Text(tr("2. Замена происходит после пробела, Enter или знака препинания, а не во время набора слова."))
+                Text(tr("3. Заменяются только слова из словаря macOS. Сленг, имена и сокращения остаются как есть — для них правый ⌥."))
+                Text(tr("4. Программы из раздела «Программы» пропускаются целиком."))
             }
         }
         .formStyle(.grouped)
@@ -461,17 +475,17 @@ struct CheckTab: View {
 struct PrivacyTab: View {
     var body: some View {
         Form {
-            Section("Что программа НЕ делает") {
-                Label("Не записывает набранный текст — журнала набора здесь нет намеренно", systemImage: "xmark.circle")
-                Label("Не видит пароли: в полях паролей macOS скрывает нажатия, а программа их пропускает", systemImage: "xmark.circle")
-                Label("Не выходит в интернет — в коде нет ни одного сетевого запроса", systemImage: "xmark.circle")
-                Label("Не трогает логины: слова с цифрами, @, точками не исправляются", systemImage: "xmark.circle")
+            Section(tr("Что программа НЕ делает")) {
+                Label(tr("Не записывает набранный текст — журнала набора здесь нет намеренно"), systemImage: "xmark.circle")
+                Label(tr("Не видит пароли: в полях паролей macOS скрывает нажатия, а программа их пропускает"), systemImage: "xmark.circle")
+                Label(tr("Не выходит в интернет — в коде нет ни одного сетевого запроса"), systemImage: "xmark.circle")
+                Label(tr("Не трогает логины: слова с цифрами, @, точками не исправляются"), systemImage: "xmark.circle")
             }
-            Section("Что хранится") {
-                Label("Текущее слово — только в памяти, стирается после пробела", systemImage: "memorychip")
-                Label("Слова-исключения — ~/Library/Application Support/LayoutFixer/exceptions.txt", systemImage: "doc.text")
-                Label("Настройки и ваши сокращения — ~/Library/Preferences/local.layoutfixer.plist", systemImage: "gearshape")
-                Button("Показать папку в Finder") {
+            Section(tr("Что хранится")) {
+                Label(tr("Текущее слово — только в памяти, стирается после пробела"), systemImage: "memorychip")
+                Label(tr("Слова-исключения — ~/Library/Application Support/LayoutFixer/exceptions.txt"), systemImage: "doc.text")
+                Label(tr("Настройки и ваши сокращения — ~/Library/Preferences/local.layoutfixer.plist"), systemImage: "gearshape")
+                Button(tr("Показать папку в Finder")) {
                     if !FileManager.default.fileExists(atPath: switcher.exceptions.url.path) { switcher.exceptions.save() }
                     NSWorkspace.shared.activateFileViewerSelecting([switcher.exceptions.url])
                 }

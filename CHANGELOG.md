@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.0
 
 - Interface in four languages: English, Simplified Chinese, Spanish and Russian. The language
   follows the system by default and can be chosen in General.

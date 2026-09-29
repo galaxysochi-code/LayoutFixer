@@ -327,7 +327,11 @@ final class Layouts {
 
 final class Speller {
     private let checker = NSSpellChecker.shared
-    let available: [String] = NSSpellChecker.shared.availableLanguages
+
+    /// Словари, которые не предлагаем и не используем.
+    static let hidden: Set<String> = ["uk"]
+
+    let available: [String] = NSSpellChecker.shared.availableLanguages.filter { !Speller.hidden.contains($0) }
 
     /// Выбранные словари (коды macOS: ru, en, en_GB, es, uk …). Читается из настроек.
     private(set) var languages: [String] = []
@@ -335,7 +339,7 @@ final class Speller {
     init() { reload() }
 
     func reload() {
-        languages = Settings.shared.spellLanguages.filter { available.contains($0) }
+        languages = Settings.shared.spellLanguages.filter { available.contains($0) } // скрытые словари сюда не попадут
         if languages.isEmpty { languages = available.filter { $0 == "ru" || $0 == "en" } }
     }
 

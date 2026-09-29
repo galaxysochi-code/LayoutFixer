@@ -22,6 +22,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSUIElement</key><true/>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>NSHumanReadableCopyright</key><string>© 2026 Vladislav Tolmachev</string>
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP"

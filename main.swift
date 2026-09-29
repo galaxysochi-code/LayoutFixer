@@ -64,7 +64,7 @@ func keyName(_ code: UInt16) -> String {
         101: "F9", 109: "F10", 103: "F11", 111: "F12", 105: "F13", 107: "F14", 113: "F15",
     ]
     if let s = special[code] { return s }
-    if let en = Layouts.shared.en { return en.char(KeyStroke(code: code, mods: 0)).uppercased() }
+    if let en = Layouts.shared.latinMain { return en.char(KeyStroke(code: code, mods: 0)).uppercased() }
     return "#\(code)"
 }
 
@@ -148,6 +148,12 @@ final class Settings {
         set { d.set(newValue, forKey: "autoText") }
     }
 
+    /// Выбранные словари (коды macOS: ru, en, en_GB, es, uk …).
+    var spellLanguages: [String] {
+        get { d.stringArray(forKey: "spellLanguages") ?? ["ru", "en"] }
+        set { d.set(newValue, forKey: "spellLanguages") }
+    }
+
     /// Программы, в которых LayoutFixer ничего не делает (bundle id).
     var excludedApps: [String] {
         get { d.stringArray(forKey: "excludedApps") ?? [] }
@@ -168,6 +174,30 @@ final class Settings {
 }
 
 // MARK: - Раскладки
+
+/// Алфавит: латиница (англ., исп., нем. …) или кириллица (рус., укр. …).
+enum Script: String {
+    case latin, cyrillic
+
+    var other: Script { self == .latin ? .cyrillic : .latin }
+
+    /// Словари macOS, относящиеся к этому алфавиту.
+    static func of(_ code: String) -> Script? {
+        let cyr = ["ru", "uk", "bg", "sr", "mk", "be"]
+        if cyr.contains(where: { code == $0 || code.hasPrefix($0 + "_") }) { return .cyrillic }
+        return .latin
+    }
+
+    static func of(character c: Character) -> Script? {
+        guard c.isLetter else { return nil }
+        return c.isASCII ? .latin : (("а"..."я").contains(Character(c.lowercased())) || c == "ё" || c == "і" || c == "ї" || c == "є" || c == "ґ" ? .cyrillic : nil)
+    }
+
+    static func of(word: String) -> Script? {
+        for c in word { if let s = of(character: c) { return s } }
+        return nil
+    }
+}
 
 struct KeyStroke {
     let code: UInt16
@@ -200,6 +230,19 @@ final class Layout {
         lang = String(first.prefix(2))
         data = Unmanaged<CFData>.fromOpaque(dataPtr).takeUnretainedValue() as Data
     }
+
+    var localizedName: String? {
+        guard let p = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) else { return nil }
+        return Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue() as String
+    }
+
+    /// Латиница или кириллица — определяем по самим клавишам.
+    lazy var script: Script? = {
+        for code: UInt16 in [0, 1, 2, 13, 14] {
+            if let c = char(KeyStroke(code: code, mods: 0)).first, let s = Script.of(character: c) { return s }
+        }
+        return nil
+    }()
 
     /// Физические ряды клавиатуры (коды клавиш) и сдвиг ряда — чтобы знать, какие буквы соседние.
     private static let rows: [([UInt16], Double)] = [
@@ -239,84 +282,115 @@ final class Layout {
 
 final class Layouts {
     static let shared = Layouts()
-    private(set) var en: Layout?
-    private(set) var ru: Layout?
+    private(set) var all: [Layout] = []
+    private var lastUsed: [Script: Layout] = [:]
 
     init() { reload() }
 
     func reload() {
-        en = nil; ru = nil
         let filter = [kTISPropertyInputSourceCategory: kTISCategoryKeyboardInputSource!,
                       kTISPropertyInputSourceIsSelectCapable: true] as CFDictionary
         let list = TISCreateInputSourceList(filter, false)?.takeRetainedValue() as? [TISInputSource] ?? []
-        for src in list {
-            guard let l = Layout(src) else { continue }
-            if l.lang == "en", en == nil { en = l }
-            if l.lang == "ru", ru == nil { ru = l }
-        }
+        all = list.compactMap(Layout.init).filter { $0.script != nil }
+        noteCurrent()
     }
 
+    func layouts(_ script: Script) -> [Layout] { all.filter { $0.script == script } }
+
+    /// Основная раскладка алфавита: та, которой пользовались последней, иначе первая включённая.
+    func main(_ script: Script) -> Layout? { lastUsed[script] ?? layouts(script).first }
+
+    var latinMain: Layout? { main(.latin) }
+    var cyrillicMain: Layout? { main(.cyrillic) }
+
+    /// Активная раскладка. nil — активен метод ввода (например, китайский пиньинь): его мы не трогаем.
     func current() -> Layout? {
         guard let src = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
               let p = TISGetInputSourceProperty(src, kTISPropertyInputSourceID) else { return nil }
         let id = Unmanaged<CFString>.fromOpaque(p).takeUnretainedValue() as String
-        if id == en?.id { return en }
-        if id == ru?.id { return ru }
-        return nil
+        return all.first { $0.id == id }
     }
 
-    func other(_ l: Layout) -> Layout? { l === en ? ru : en }
+    /// Запоминаем, какой раскладкой каждого алфавита пользовались последней.
+    func noteCurrent() {
+        guard let cur = current(), let sc = cur.script else { return }
+        lastUsed[sc] = cur
+    }
+
+    func other(_ l: Layout) -> Layout? {
+        guard let sc = l.script else { return nil }
+        return main(sc.other)
+    }
 }
 
 // MARK: - Словари (системная проверка орфографии macOS, всё локально)
 
 final class Speller {
     private let checker = NSSpellChecker.shared
-    private var codes: [String: String] = [:]
+    let available: [String] = NSSpellChecker.shared.availableLanguages
 
-    init() {
-        for lang in ["en", "ru"] {
-            let avail = checker.availableLanguages
-            codes[lang] = avail.first { $0 == lang } ?? avail.first { $0.hasPrefix(lang) }
-        }
+    /// Выбранные словари (коды macOS: ru, en, en_GB, es, uk …). Читается из настроек.
+    private(set) var languages: [String] = []
+
+    init() { reload() }
+
+    func reload() {
+        languages = Settings.shared.spellLanguages.filter { available.contains($0) }
+        if languages.isEmpty { languages = available.filter { $0 == "ru" || $0 == "en" } }
     }
 
-    var missing: [String] { ["en", "ru"].filter { codes[$0] == nil } }
+    func languages(for script: Script) -> [String] { languages.filter { Script.of($0) == script } }
 
-    func isWord(_ w: String, _ lang: String) -> Bool {
-        guard let code = codes[lang], isWordish(w) else { return false }
-        let r = checker.checkSpelling(of: w, startingAt: 0, language: code, wrap: false,
-                                      inSpellDocumentWithTag: 0, wordCount: nil)
-        return r.location == NSNotFound
+    var missingScripts: [Script] { [.latin, .cyrillic].filter { languages(for: $0).isEmpty } }
+
+    func isWord(_ w: String, _ codes: [String]) -> Bool {
+        guard isWordish(w) else { return false }
+        for code in codes {
+            let r = checker.checkSpelling(of: w, startingAt: 0, language: code, wrap: false,
+                                          inSpellDocumentWithTag: 0, wordCount: nil)
+            if r.location == NSNotFound { return true }
+        }
+        return false
     }
 
     /// Как слово правильно пишется: само слово, либо с заглавной, если это название
-    /// («нидерланды» -> «Нидерланды», «london» -> «London»). nil — такого слова нет.
-    func knownForm(_ w: String, _ lang: String) -> String? {
-        if isWord(w, lang) { return w }
+    /// («нидерланды» -> «Нидерланды», «london» -> «London»). nil — такого слова нет ни в одном выбранном словаре.
+    func knownForm(_ w: String, script: Script? = nil) -> String? {
+        let sc = script ?? Script.of(word: w)
+        guard let sc else { return nil }
+        let codes = languages(for: sc)
+        guard !codes.isEmpty else { return nil }
+        if isWord(w, codes) { return w }
         guard w == w.lowercased() else { return nil }
         let cap = w.prefix(1).uppercased() + w.dropFirst()
-        return isWord(cap, lang) ? cap : nil
+        return isWord(cap, codes) ? cap : nil
     }
 
-    /// Исправление опечатки или nil.
-    /// Срабатывает, только если macOS уверена, что это опечатка (есть автоисправление). Из её вариантов
-    /// выбираем тот, что ближе по клавиатуре: «менб» -> «меню» (Б рядом с Ю), а не «меня».
+    /// Исправление опечатки или nil. Перебираем выбранные словари этого алфавита.
+    /// Из вариантов macOS берём тот, что ближе по клавиатуре: «менб» -> «меню» (Б рядом с Ю), а не «меня».
     /// Допускается одна ошибка (или два промаха по соседним клавишам), иначе слово не трогаем.
     func correction(_ w: String, _ layout: Layout) -> String? {
-        guard let code = codes[layout.lang], w.count >= 4, isWordish(w) else { return nil }
+        guard let sc = Script.of(word: w), w.count >= 4, isWordish(w) else { return nil }
         let rest = w.dropFirst()
         guard rest == rest.lowercased() || w == w.uppercased() else { return nil } // «vAsYa», iPhone — не трогаем
         let lower = w.lowercased()
         let range = NSRange(location: 0, length: (lower as NSString).length)
-        guard let auto = checker.correction(forWordRange: range, in: lower, language: code, inSpellDocumentWithTag: 0)
-        else { return nil }
-        let guesses = checker.guesses(forWordRange: range, in: lower, language: code, inSpellDocumentWithTag: 0) ?? []
-        let candidates = ([auto] + guesses.prefix(6)).map { $0.lowercased() }
-            .filter { $0 != lower && isWordish($0) }
-            .filter { $0.count == lower.count || lower.count >= 6 } // лишнюю/пропущенную букву — только в длинных словах
-        let scored = candidates.map { ($0, typoCost(lower, $0, near: layout.areNeighbors)) }
-        guard let (fixed, cost) = scored.min(by: { $0.1 < $1.1 }), cost <= 1 else { return nil }
+
+        var best: (String, Double)?
+        for code in languages(for: sc) {
+            guard let auto = checker.correction(forWordRange: range, in: lower, language: code,
+                                                inSpellDocumentWithTag: 0) else { continue }
+            let guesses = checker.guesses(forWordRange: range, in: lower, language: code,
+                                          inSpellDocumentWithTag: 0) ?? []
+            let candidates = ([auto] + guesses.prefix(6)).map { $0.lowercased() }
+                .filter { $0 != lower && isWordish($0) }
+                .filter { $0.count == lower.count || lower.count >= 6 } // лишнюю/пропущенную букву — только в длинных словах
+            for c in candidates {
+                let cost = typoCost(lower, c, near: layout.areNeighbors)
+                if best == nil || cost < best!.1 { best = (c, cost) }
+            }
+        }
+        guard let (fixed, cost) = best, cost <= 1 else { return nil }
         if w == w.uppercased() { return fixed.uppercased() }
         if w.first!.isUppercase { return fixed.prefix(1).uppercased() + fixed.dropFirst() }
         return fixed
@@ -504,7 +578,7 @@ enum TextTools {
     }
 
     static func convertLayout(_ text: String) -> (String, Layout?) {
-        guard let en = Layouts.shared.en, let ru = Layouts.shared.ru else { return (text, nil) }
+        guard let en = Layouts.shared.latinMain, let ru = Layouts.shared.cyrillicMain else { return (text, nil) }
         var enToRu: [Character: Character] = [:], ruToEn: [Character: Character] = [:]
         for code: UInt16 in 0...50 where ![36, 48, 49].contains(code) {
             for mods: UInt32 in [0, 2] {
@@ -514,8 +588,8 @@ enum TextTools {
                 if ruToEn[r] == nil { ruToEn[r] = e }
             }
         }
-        let cyr = text.filter { $0.isLetter && !$0.isASCII }.count
-        let lat = text.filter { $0.isLetter && $0.isASCII }.count
+        let cyr = text.filter { Script.of(character: $0) == .cyrillic }.count
+        let lat = text.filter { Script.of(character: $0) == .latin }.count
         let map = cyr > lat ? ruToEn : enToRu
         // Буквы меняем всегда. Знак препинания становится буквой, только если он внутри слова
         // («pf,jnf» -> «забота»), а в конце слова остаётся знаком («ltkf,» -> «дела,»).
@@ -795,8 +869,8 @@ final class Switcher {
         }
 
         let ks = KeyStroke(event)
-        let en = layouts.en.map { $0.char(ks) } ?? ""   // UCKeyTranslate — локальная таблица, без ожиданий
-        let ru = layouts.ru.map { $0.char(ks) } ?? ""
+        let en = layouts.latinMain.map { $0.char(ks) } ?? ""   // UCKeyTranslate — локальная таблица, без ожиданий
+        let ru = layouts.cyrillicMain.map { $0.char(ks) } ?? ""
         if [en, ru].contains(where: { $0.count == 1 && $0.first!.isLetter }) {
             lock.lock()
             if current.isEmpty { lastWord = nil }
@@ -928,12 +1002,12 @@ final class Switcher {
         let n = keys.count - tail
         let curWord = c[..<n].joined(), curTail = c[n...].joined()
 
-        if exceptions.contains(curWord) || speller.knownForm(curWord, cur.lang) != nil { return nil }
+        if exceptions.contains(curWord) || speller.knownForm(curWord) != nil { return nil }
 
         let altAll = a.joined()
-        if tail > 0, let w = speller.knownForm(altAll, alt.lang) { return (w, curWord) }
+        if tail > 0, let w = speller.knownForm(altAll) { return (w, curWord) }
         let altWord = a[..<n].joined()
-        if altWord.count >= 2, let w = speller.knownForm(altWord, alt.lang) { return (w + curTail, curWord) }
+        if altWord.count >= 2, let w = speller.knownForm(altWord) { return (w + curTail, curWord) }
         return nil
     }
 
@@ -942,7 +1016,7 @@ final class Switcher {
         let c = keys.map(cur.char)
         let n = keys.count - tailLength(c)
         let word = c[..<n].joined(), tail = c[n...].joined()
-        guard !exceptions.contains(word), speller.knownForm(word, cur.lang) == nil,
+        guard !exceptions.contains(word), speller.knownForm(word) == nil,
               let fixed = speller.correction(word, cur) else { return nil }
         return (fixed + tail, word)
     }
@@ -956,11 +1030,11 @@ final class Switcher {
         }
         if word.count < 2 { return "Слишком короткое слово — такие не заменяются." }
         if exceptions.contains(word) { return "«\(word)» в списке исключений (раздел «Правила») — не заменяется." }
-        if let form = speller.knownForm(word, cur.lang) {
+        if let form = speller.knownForm(word) {
             return "«\(form)» — обычное слово в текущей раскладке, заменять нечего."
         }
         let (other, _) = TextTools.convertLayout(word)
-        if let form = speller.knownForm(other, alt.lang) { return "Заменит на «\(form)» и переключит раскладку." }
+        if let form = speller.knownForm(other) { return "Заменит на «\(form)» и переключит раскладку." }
         if let fixed = speller.correction(word, cur) { return "Опечатка: исправит на «\(fixed)»." }
         var why = "Не заменит: «\(other)» в другой раскладке — не слово из словаря."
         if !isWordish(other) { why += " В нём есть цифры или знаки, а такие слова программа не трогает." }
@@ -1071,6 +1145,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(kTISNotifyEnabledKeyboardInputSourcesChanged as String),
             object: nil, queue: .main) { _ in Layouts.shared.reload() }
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+            object: nil, queue: .main) { _ in Layouts.shared.noteCurrent() } // запоминаем последнюю раскладку каждого алфавита
 
         switcher.refreshSettings()
         switcher.startSecureMonitor()

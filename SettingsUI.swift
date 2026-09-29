@@ -87,6 +87,26 @@ final class SettingsModel: ObservableObject {
         refresh()
     }
 
+    // словари
+    func languageName(_ code: String) -> String {
+        let name = Locale.current.localizedString(forIdentifier: code) ?? code
+        return name.prefix(1).uppercased() + name.dropFirst()
+    }
+
+    var availableLanguages: [String] {
+        switcher.speller.available.sorted { languageName($0) < languageName($1) }
+    }
+
+    func isLanguageOn(_ code: String) -> Bool { s.spellLanguages.contains(code) }
+
+    func setLanguage(_ code: String, _ on: Bool) {
+        var list = s.spellLanguages
+        if on { if !list.contains(code) { list.append(code) } } else { list.removeAll { $0 == code } }
+        s.spellLanguages = list
+        switcher.speller.reload()
+        refresh()
+    }
+
     // программы
     func addApp() {
         let panel = NSOpenPanel()
@@ -123,6 +143,7 @@ struct SettingsView: View {
             RulesTab(m: m).tabItem { Label("Правила", systemImage: "character.book.closed") }
             AutoTextTab(m: m).tabItem { Label("Автозамена", systemImage: "text.insert") }
             AppsTab(m: m).tabItem { Label("Программы", systemImage: "square.grid.2x2") }
+            LanguagesTab(m: m).tabItem { Label("Языки", systemImage: "character.book.closed.fill") }
             CheckTab().tabItem { Label("Проверка", systemImage: "stethoscope") }
             PrivacyTab().tabItem { Label("Приватность", systemImage: "lock.shield") }
         }
@@ -154,10 +175,12 @@ struct GeneralTab: View {
                     Text("Нажмите «+», выберите Программы → LayoutFixer и включите переключатель. Если программа уже в списке — удалите её «−» и добавьте заново.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                statusRow("Раскладки", ok: Layouts.shared.en != nil && Layouts.shared.ru != nil,
-                          good: "Английская и русская найдены", bad: "Добавьте английскую и русскую раскладки в настройках клавиатуры")
-                statusRow("Словари", ok: switcher.speller.missing.isEmpty,
-                          good: "Русский и английский (встроенные в macOS)", bad: "Нет словаря: \(switcher.speller.missing.joined(separator: ", "))")
+                statusRow("Раскладки", ok: Layouts.shared.latinMain != nil && Layouts.shared.cyrillicMain != nil,
+                          good: Layouts.shared.all.compactMap { $0.localizedName }.joined(separator: ", "),
+                          bad: "Нужны две раскладки: латинская и кириллическая")
+                statusRow("Словари", ok: switcher.speller.missingScripts.isEmpty,
+                          good: switcher.speller.languages.map { m.languageName($0) }.joined(separator: ", "),
+                          bad: "Выберите словари обоих алфавитов в разделе «Языки»")
             }
             Section("Исправление") {
                 Toggle("Автоматически переключать раскладку (ghbdtn → привет)", isOn: m.autoFix)
@@ -168,6 +191,19 @@ struct GeneralTab: View {
                 Toggle("Звук при переключении раскладки", isOn: m.sound)
                 Toggle("Запускать при входе в систему", isOn: m.launchAtLogin)
                 if let e = m.loginError { Text(e).font(.callout).foregroundStyle(.red) }
+            }
+            Section("О программе") {
+                HStack {
+                    Text("LayoutFixer")
+                    Spacer()
+                    Text("версия \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")")
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Разработчик")
+                    Spacer()
+                    Text("Vladislav Tolmachev").foregroundStyle(.secondary).textSelection(.enabled)
+                }
             }
         }
         .formStyle(.grouped)
@@ -347,6 +383,33 @@ struct AppsTab: View {
             Section("Всегда исключены") {
                 Text("Поля паролей во всех программах, а также менеджеры паролей: Пароли, Связка ключей, 1Password, Bitwarden, LastPass, KeePassXC, Dashlane.")
                     .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+// MARK: Языки
+
+struct LanguagesTab: View {
+    @ObservedObject var m: SettingsModel
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(m.availableLanguages, id: \.self) { code in
+                    Toggle(isOn: Binding(get: { m.isLanguageOn(code) }, set: { m.setLanguage(code, $0) })) {
+                        HStack {
+                            Text(m.languageName(code))
+                            Text(code).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text("Словари для проверки слов")
+            } footer: {
+                Text("Нужен хотя бы один словарь с латиницей (английский, испанский…) и один с кириллицей (русский, украинский). Слово считается правильным, если оно есть хотя бы в одном выбранном словаре своего алфавита. Чем больше словарей, тем реже срабатывает замена: слова из разных языков начинают считаться правильными.\n\nКитайского здесь нет: в macOS нет такого словаря, и китайский набирается методом ввода, а не раскладкой — подменять буквы там нечего.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

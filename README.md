@@ -114,8 +114,9 @@ until you free them in Keyboard settings.
 ```bash
 git clone https://github.com/galaxysochi-code/LayoutFixer.git
 cd LayoutFixer
-./build.sh      # builds build/LayoutFixer.app
-./make_dmg.sh   # builds build/LayoutFixer.dmg
+./scripts/test.sh   # runs the logic tests
+./build.sh          # builds build/LayoutFixer.app
+./make_dmg.sh       # builds build/LayoutFixer.dmg
 ```
 
 Xcode Command Line Tools are the only requirement — no third-party libraries. The icon is drawn

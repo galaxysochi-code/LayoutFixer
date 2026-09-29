@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 APP=build/LayoutFixer.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
-swiftc -O -swift-version 5 main.swift SettingsUI.swift Localization.swift -o "$APP/Contents/MacOS/LayoutFixer" -framework Cocoa -framework Carbon
+swiftc -O -swift-version 5 Core.swift SettingsUI.swift Localization.swift main.swift -o "$APP/Contents/MacOS/LayoutFixer" -framework Cocoa -framework Carbon
 mkdir -p "$APP/Contents/Resources" build/tmp
 swiftc -swift-version 5 make_icon.swift -o build/tmp/make_icon
 build/tmp/make_icon build/tmp/AppIcon.iconset

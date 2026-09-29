@@ -15,7 +15,9 @@ Open an [issue](https://github.com/galaxysochi-code/LayoutFixer/issues) and incl
 
 ## Pull requests
 
-- Build with `./build.sh` and try the change on a real keyboard before opening the PR.
+- Run `./scripts/test.sh`, build with `./build.sh` and try the change on a real keyboard before
+  opening the PR. The tests cover the replacement decisions, typo correction, transliteration and
+  the translation table; add a case when you change any of them.
 - Keep the code in the style of the surrounding sources: comments in Russian, no third-party
   dependencies, no new build tooling.
 - **Never add anything that stores typed text**, and never add networking. Both are deal breakers,
